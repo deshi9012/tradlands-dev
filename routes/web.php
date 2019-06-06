@@ -13,5 +13,6 @@
 
 
 Route::get('/', 'ApiController@index');
+Route::get('/products', 'ApiController@getProducts');
 
 Route::any('/authenticate','ApiController@authenticate');

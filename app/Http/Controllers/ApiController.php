@@ -20,7 +20,7 @@ class ApiController extends Controller {
         \PHPShopify\ShopifySDK::config($this->config);
 
         //your_authorize_url.php
-        $scopes = 'read_orders,write_orders';
+        $scopes = 'read_orders,write_orders,read_products,write_products';
         //This is also valid
         //$scopes = array('read_products','write_products','read_script_tags', 'write_script_tags');
         $redirectUrl = 'https://tradlands-dev.herokuapp.com/authenticate';
@@ -36,5 +36,11 @@ class ApiController extends Controller {
         //Now store it in database or somewhere else
 
 
+    }
+
+    public function getProducts() {
+        $shopify = new \PHPShopify\ShopifySDK($this->config);
+        $products = $shopify->Product->get();
+        return $products;
     }
 }
