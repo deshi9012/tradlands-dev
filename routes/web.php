@@ -16,3 +16,5 @@ Route::get('/', 'ApiController@index');
 Route::get('/products', 'ApiController@getProducts');
 
 Route::any('/authenticate','ApiController@authenticate');
+
+Route::any('/orders/new','ApiController@createOrder');

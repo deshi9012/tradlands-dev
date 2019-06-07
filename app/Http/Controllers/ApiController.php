@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 
 class ApiController extends Controller {
     public $config;
+
     function __construct() {
         $this->config = array(
             'ShopUrl'      => 'tradlands-dev.myshopify.com',
@@ -28,6 +29,7 @@ class ApiController extends Controller {
         \PHPShopify\AuthHelper::createAuthRequest($scopes, $redirectUrl);
 
     }
+
     public function authenticate() {
 
         \PHPShopify\ShopifySDK::config($this->config);
@@ -42,5 +44,12 @@ class ApiController extends Controller {
         $shopify = new \PHPShopify\ShopifySDK($this->config);
         $products = $shopify->Product->get();
         return $products;
+    }
+
+    public function createOrder(Request $request) {
+        $hmac_header = 'HTTP_X_SHOPIFY_HMAC_SHA256';
+        $calculated_hmac = base64_encode(hash_hmac('sha256', $request->all(), $this->config['SharedSecret'], true));
+        $verified = hash_equals($hmac_header, $calculated_hmac);
+        error_log('Webhook verified: ' . var_export($verified, true)); //check error.log to see
     }
 }
