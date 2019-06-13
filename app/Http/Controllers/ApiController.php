@@ -6,6 +6,7 @@ use EasyPost\EasyPost;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Storage;
+use App\Order;
 
 class ApiController extends Controller {
     public $config;
@@ -70,8 +71,10 @@ class ApiController extends Controller {
 
     public function createOrder(Request $request) {
 
+        /*
+         * TODO Must have a check if order exists
+         */
         $order = [];
-        Log::info($request->all());
 
         $order['shopify_id'] = $request->all()['id'];
         $order['shopify_email'] = $request->all()['email'];
@@ -85,43 +88,77 @@ class ApiController extends Controller {
         $order['shopify_all_order'] = $request->all();
 
 
+        //Check if total weight is <= 0
+        // EasyPost don't accept 0 as weight
+        if ($request->all()['total_weight'] <= 0) {
+            $request->all()['total_weight'] = 0.1;
+        }
+        $weight_in_oz = $request->all()['total_weight'] * 0.035;
         EasyPost::setApiKey($this->configEasyPost['API_KEY']);
 
         $to_address = \EasyPost\Address::create(array(
-                "name"    => "Dr. Steve Brule",
-                "street1" => "179 N Harbor Dr",
-                "city"    => "Redondo Beach",
-                "state"   => "CA",
-                "zip"     => "90277",
-                "phone"   => "310-808-5243"
-            ));
+            "name"    => $request->all()['shipping_address']['name'],
+            "street1" => $request->all()['shipping_address']['address1'],
+            "city"    => $request->all()['shipping_address']['city'],
+            "state"   => $request->all()['shipping_address']['province_code'],
+            "zip"     => $request->all()['shipping_address']['zip'],
+            "phone"   => $request->all()['shipping_address']['phone']
+        ));
 
+        //From Address will be only one
         $from_address = \EasyPost\Address::create(array(
-                "company" => "EasyPost",
-                "street1" => "118 2nd Street",
-                "street2" => "4th Floor",
-                "city"    => "San Francisco",
-                "state"   => "CA",
-                "zip"     => "94105",
-                "phone"   => "415-456-7890"
-            ));
-        $parcel = \EasyPost\Parcel::create(array(
-                "predefined_package" => "LargeFlatRateBox",
-                "weight"             => 76.9
-                //this is in oz.
-            ));
-        $shipment = \EasyPost\Shipment::create(array(
-                "to_address"   => $to_address,
-                "from_address" => $from_address,
-                "parcel"       => $parcel
-            ));
+            "company" => "EasyPost",
+            "street1" => "118 2nd Street",
+            "street2" => "4th Floor",
+            "city"    => "San Francisco",
+            "state"   => "CA",
+            "zip"     => "94105",
+            "phone"   => "415-456-7890"
+        ));
 
-        $shipment->buy($shipment->lowest_rate());
+//        $parcel = \EasyPost\Parcel::create(array(
+//            "predefined_package" => "LargeFlatRateBox",
+//            "weight"             => $weight_in_oz
+//            //this is in oz.
+//        ));
+//
+//
+//        $shipment = \EasyPost\Shipment::create(array(
+//            "to_address"   => $to_address,
+//            "from_address" => $from_address,
+//            "parcel"       => $parcel
+//        ));
+//
+//        $shipment->buy($shipment->lowest_rate());
 
-        $shipment->insure(array('amount' => 100));
+//        $shipment->insure(array('amount' => 100));
 
 
-        Log::info('hahahahah' . $shipment->postage_label->label_url);
+        $order = Order::create([
+            'shopify_id'               => $request->all()['id'],
+            'shopify_email'            => $request->all()['email'],
+            'shopify_total_price'      => $request->all()['total_price'],
+            'shopify_order_number'     => $request->all()['number'],
+            'shopify_total_weight'     => $request->all()['total_weight'],
+            'shopify_line_items'       => json_encode($request->all()['line_items']),
+            'shopify_shipping_address' => json_encode($request->all()['shipping_address']),
+            'shopify_billing_address'  => json_encode($request->all()['billing_address']),
+            /*
+             * TODO Must delete order_weight
+             */
+            'shopify_order_weight'     => $request->all()['total_weight'],
+            'shopify_all_order'        => json_encode($request->all()),
+            'easypost_to_address'      => $to_address,
+            'easypost_from_address'    => $from_address,
+            'predefined_package'       => 'LargeFlatRateBox',
+            'easypost_parcel_weight'   => $weight_in_oz
+
+        ]);
+
+
+//        Log::info('hahahahah' . $shipment->postage_label->label_url);
+        Log::info(json_encode($to_address));
+
 
     }
 }
