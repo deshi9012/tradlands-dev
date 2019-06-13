@@ -12,7 +12,9 @@
 */
 
 
-Route::get('/', 'ApiController@index');
+Route::get('/', function(){
+    dd('qshaa');
+});
 Route::get('/products', 'ApiController@getProducts');
 
 Route::any('/authenticate','ApiController@authenticate');
