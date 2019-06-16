@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use EasyPost\EasyPost;
+use EasyPost\Error;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Storage;
 use App\Order;
+use Mail;
 
 class ApiController extends Controller {
     public $config;
@@ -74,6 +76,7 @@ class ApiController extends Controller {
         /*
          * TODO Must have a check if order exists
          */
+
         $order = [];
 
         $order['shopify_id'] = $request->all()['id'];
@@ -96,47 +99,70 @@ class ApiController extends Controller {
         $weight_in_oz = $request->all()['total_weight'] * 0.035;
         EasyPost::setApiKey($this->configEasyPost['API_KEY']);
 
-        $to_address = \EasyPost\Address::create(array(
-            "name"    => $request->all()['shipping_address']['name'],
-            "street1" => $request->all()['shipping_address']['address1'],
-            "city"    => $request->all()['shipping_address']['city'],
-            "state"   => $request->all()['shipping_address']['province_code'],
-            "zip"     => $request->all()['shipping_address']['zip'],
-            "phone"   => $request->all()['shipping_address']['phone']
-        ));
 
-        //From Address will be only one
-        $from_address = \EasyPost\Address::create(array(
-            "company" => "EasyPost",
-            "street1" => "118 2nd Street",
-            "street2" => "4th Floor",
-            "city"    => "San Francisco",
-            "state"   => "CA",
-            "zip"     => "94105",
-            "phone"   => "415-456-7890"
-        ));
+        try {
+            $to_address = \EasyPost\Address::create(array(
+                "name"    => $request->all()['shipping_address']['name'],
+                "street1" => $request->all()['shipping_address']['address1'],
+                "city"    => $request->all()['shipping_address']['city'],
+                "state"   => $request->all()['shipping_address']['province_code'],
+                "zip"     => $request->all()['shipping_address']['zip'],
+                "phone"   => $request->all()['shipping_address']['phone']
+            ));
+            Log::info('to-address');
+            //From Address will be only one
+            $from_address = \EasyPost\Address::create(array(
+                "company" => "EasyPost",
+                "street1" => "118 2nd Street",
+                "street2" => "4th Floor",
+                "city"    => "San Francisco",
+                "state"   => "CA",
+                "zip"     => "94105",
+                "phone"   => "415-456-7890"
+            ));
+            Log::info('from-address');
+            $parcel = \EasyPost\Parcel::create(array(
+                "predefined_package" => "LargeFlatRateBox",
+                "weight"             => $weight_in_oz
+                //this is in oz.
+            ));
+            Log::info('parcel');
 
-//        $parcel = \EasyPost\Parcel::create(array(
-//            "predefined_package" => "LargeFlatRateBox",
-//            "weight"             => $weight_in_oz
-//            //this is in oz.
-//        ));
+            $shipment = \EasyPost\Shipment::create(array(
+                "to_address"   => $to_address,
+                "from_address" => $from_address,
+                "parcel"       => $parcel
+            ));
+            Log::info('shipment');
+
+
+            $shipment->buy($shipment->lowest_rate());
+            Log::info('buy');
+            $shipment->insure(array('amount' => 100));
+            Log::info('insure');
+        } catch (Error $error) {
+
+            $message['order_number'] = $request->all()['number'];
+            $message['error_code'] = $error->getHttpStatus();
+            $message['error_message'] = $error->getMessage();
+            $email = 'ilia.bojadzhiev@gmail.com';
+//            try {
+                Mail::send('email.easyPostError', ['data' => $message], function ($m) use ($message, $email) {
+                    $m->to($email)->subject('Something went wrong with order! ');
+                });
+//            } catch (Exception $exception) {
+                Log::info('OK');
+//            }
+
+        }
+
 //
-//
-//        $shipment = \EasyPost\Shipment::create(array(
-//            "to_address"   => $to_address,
-//            "from_address" => $from_address,
-//            "parcel"       => $parcel
-//        ));
-//
-//        $shipment->buy($shipment->lowest_rate());
 
-//        $shipment->insure(array('amount' => 100));
-
-
-        $order = Order::create([
+        Log::info('gonna create');
+        return Order::create([
             'shopify_id'               => $request->all()['id'],
             'shopify_email'            => $request->all()['email'],
+            'shopify_phone'            => $request->all()['phone'],
             'shopify_total_price'      => $request->all()['total_price'],
             'shopify_order_number'     => $request->all()['number'],
             'shopify_total_weight'     => $request->all()['total_weight'],
@@ -157,7 +183,7 @@ class ApiController extends Controller {
 
 
 //        Log::info('hahahahah' . $shipment->postage_label->label_url);
-        Log::info(json_encode($to_address));
+//        Log::info(json_encode($to_address));
 
 
     }

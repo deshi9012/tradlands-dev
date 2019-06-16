@@ -16,7 +16,8 @@ class CreateTableOrders extends Migration {
             //Shopify data
             $table->bigIncrements('id');
             $table->bigInteger('shopify_id');
-            $table->string('shopify_email');
+            $table->string('shopify_email')->nullable();
+            $table->string('shopify_phone')->nullable();
             $table->string('shopify_total_price');
             $table->string('shopify_order_number');
             $table->string('shopify_total_weight');
