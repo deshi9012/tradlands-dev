@@ -86,6 +86,7 @@
       <path value="$PROJECT_DIR$/vendor/theseer/tokenizer" />
       <path value="$PROJECT_DIR$/vendor/beaub/laravel-easypost-webhooks" />
       <path value="$PROJECT_DIR$/vendor/easypost/easypost-php" />
+      <path value="$PROJECT_DIR$/vendor/predis/predis" />
     </include_path>
   </component>
   <component name="PhpProjectSharedConfiguration" php_language_level="7.1" />

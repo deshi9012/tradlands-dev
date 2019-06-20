@@ -12,11 +12,21 @@
 */
 
 
-Route::get('/', function(){
-    dd('qshaa');
+use App\Jobs\FailedOrders;
+
+Route::get('/', function () {
+//    $order = App\Order::first();
+//    FailedOrders::dispatch($order);
+//
+//    return 'Finished';
+
+    return \App\InternalError::first();
 });
 Route::get('/products', 'ApiController@getProducts');
 
-Route::any('/authenticate','ApiController@authenticate');
+Route::get('/orders', 'ApiController@getDailyOrders');
 
-Route::any('/orders/new','ApiController@createOrder');
+Route::any('/authenticate', 'ApiController@authenticate');
+
+Route::post('/orders/new', 'ApiController@createOrder');
+Route::any('/orders/update', 'ApiController@updateOrder');
