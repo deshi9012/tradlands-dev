@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\AcceptOrder;
 use App\Jobs\FailedOrders;
 use App\Product;
 use Carbon\Carbon;
@@ -54,43 +55,6 @@ class ApiController extends Controller {
 
     }
 
-    public function index() {
-        \PHPShopify\ShopifySDK::config($this->config);
-
-        //your_authorize_url.php
-        $scopes = 'read_orders,write_orders,read_products,write_products';
-        //This is also valid
-        //$scopes = array('read_products','write_products','read_script_tags', 'write_script_tags');
-        $redirectUrl = 'https://tradlands-dev.herokuapp.com/authenticate';
-
-        \PHPShopify\AuthHelper::createAuthRequest($scopes, $redirectUrl);
-
-    }
-
-    private function checkHmac() {
-        function verify_webhook($data, $hmac_header) {
-            $calculated_hmac = base64_encode(hash_hmac('sha256', $data, SHOPIFY_APP_SECRET, true));
-            return hash_equals($hmac_header, $calculated_hmac);
-        }
-
-
-        $hmac_header = $_SERVER['HTTP_X_SHOPIFY_HMAC_SHA256'];
-        $data = file_get_contents('php://input');
-        $verified = verify_webhook($data, $hmac_header);
-        error_log('Webhook verified: ' . var_export($verified, true)); //check error.log to see the result
-
-    }
-
-    public function authenticate() {
-
-        \PHPShopify\ShopifySDK::config($this->config);
-        $accessToken = \PHPShopify\AuthHelper::getAccessToken();
-        dd($accessToken);
-        //Now store it in database or somewhere else
-
-
-    }
-
     public function getProducts() {
 
         $shopify = new \PHPShopify\ShopifySDK($this->config);
@@ -107,199 +71,220 @@ class ApiController extends Controller {
 
     public function createFulfillmentOrder(Request $request) {
 
-
-        $order = Order::where('shopify_id', $request->all()['id'])->first();
-        $this->send_to_easypost = false;
-        //Check if order not exist in our system
-
-        if (!$order) {
-            EasyPost::setApiKey($this->configEasyPost['API_KEY']);
-
-
-            $easyPostOrderFulfillment['service'] = 'standard';
-            $easyPostOrderFulfillment['destination'] = [
-                'name'        => $request->all()['shipping_address']['name'],
-                "street1"     => $request->all()['shipping_address']['address1'],
-                "city"        => $request->all()['shipping_address']['city'],
-                "state"       => $request->all()['shipping_address']['province_code'],
-                "zip"         => $request->all()['shipping_address']['zip'],
-                "country"     => "US",
-                "residential" => true
-            ];
-
-            foreach ($request->all()['line_items'] as $item) {
-
-                $dbProduct = Product::where('barcode', $item['sku'])->first();
-                if (!$dbProduct) {
-
-                    /*
-                     * TODO this should create new product in easypost and our system
-                     */
-                    $this->createNewProduct(null, null, []);
-                }
-
-                $easyPostOrderFulfillment['line_items'][] = [
-                        //This is for production
-                        //"product" => ["barcode" => $item['sku']],
-                        //This is for test orders
-                        "product" => ["barcode" => '132-658-887'],
-                        "units"   => $item['quantity']
-                ];
-            }
-            //additional product
-            if (count($easyPostOrderFulfillment['line_items']) >= 2) {
-
-                $additionalProduct = $this->getProduct(1089709637668);
-                $easyPostOrderFulfillment['line_items'][] = [
-                    //This is for production
-                    //"product" => ["barcode" => $item['sku']],
-                    //This is for test orders
-                    "product" => ["barcode" => $additionalProduct['barcode']],
-                    "units"   => 1
-                ];
-            }
-
-
-            $client = new Client();
-            //Try to create product in EasypostOrderFulfillment system
-            logger($easyPostOrderFulfillment);
-            try {
-                logger('start fulfillment');
-                $res = $client->post('https://api.easypost.com/fulfillment/vendor/v2/orders', [
-                    'headers' => ['Content-type' => 'application/json'],
-                    'auth'    => [
-                        'tLxVX2kdaW3sbGnq80eUSg',
-                        null
-                    ],
-                    'json'    => $easyPostOrderFulfillment
-                ]);
-                $resBody = json_decode($res->getBody(), 1);
-                logger($resBody);
-                logger('end fulfillment');
-                $this->createOrder($request);
-                return response()->json(['success' => 'success'], 200);
-            } catch (ClientException $exception) {
-                logger($exception);
-                return response()->json(['success' => 'success'], 200);
-            }
-        }
-    }
-
-    public function createOrder(Request $request) {
-
-        EasyPost::setApiKey($this->configEasyPost['API_KEY']);
-
-        $addresses['to_address'] = [
-            "name"    => $request->all()['shipping_address']['name'],
-            "street1" => $request->all()['shipping_address']['address1'],
-            "city"    => $request->all()['shipping_address']['city'],
-            "state"   => $request->all()['shipping_address']['province_code'],
-            "zip"     => $request->all()['shipping_address']['zip'],
-            "phone"   => $request->all()['shipping_address']['phone']
-        ];
-
-        /*
-         * TODO to ask what is his from address
-         */
-        $addresses['from_address'] = [
-            "company" => "EasyPost",
-            "street1" => "118 2nd Street",
-            "street2" => "4th Floor",
-            "city"    => "San Francisco",
-            "state"   => "CA",
-            "zip"     => "94105",
-            "phone"   => "415-456-7890"
-        ];
-        $to_address = \EasyPost\Address::create($addresses['to_address']);
-
-
-        //From Address will be only one
-        $from_address = \EasyPost\Address::create($addresses['from_address']);
-
-        $weight_in_oz = $request->all()['total_weight'] * 0.035;
-        //Check if total weight is <= 0
-        // EasyPost don't accept 0 as weight
-
-        if ($request->all()['total_weight'] <= 0) {
-            $weight_in_oz = 0.1;
-        }
-
-
-        logger($weight_in_oz);
-
-//            $weight_in_oz = 0;
-
-
-        try {
-            logger('start order');
-
-            $parcel = \EasyPost\Parcel::create(array(
-                "predefined_package" => "LargeFlatRateBox",
-                "weight"             => $weight_in_oz
-                //this is in oz.
-            ));
-
-
-            $shipment = \EasyPost\Shipment::create(array(
-                "to_address"   => $to_address,
-                "from_address" => $from_address,
-                "parcel"       => $parcel
-            ));
-            logger($parcel);
-            $shipment->buy($shipment->lowest_rate());
-
-            $this->send_to_easypost = true;
-            //                $shipment->insure(array('amount' => 100));
-            logger('end order');
-
-        } catch (Error $error) {
-//                FailedOrders()
-            logger('not Sended');
-
-            $message['order_number'] = $request->all()['number'];
-            $message['error_code'] = $error->getHttpStatus();
-            $message['error_message'] = $error->getMessage();
-
-
-            //Log errors in DB
-            InternalError::create([
-                'shopify_order_number' => $request->all()['number'],
-                'error_body'           => json_encode($error)
-            ]);
-//                FailedOrders::dispatch($message, $addresses, $this->configEasyPost['API_KEY'], $weight_in_oz)->delay(now()->addMinutes(5));
-            FailedOrders::dispatch($message, $addresses, $this->configEasyPost['API_KEY'], $weight_in_oz, $request->all()['number']);
-
-        }
-
-        /*
-         * TODO If order is successfyly sent to EasyPost
-         * send_to_easypost field should to be updated too
-         */
-
-        Order::create([
-            'shopify_id'               => $request->all()['id'],
-            'shopify_email'            => $request->all()['email'],
-            'shopify_phone'            => $request->all()['phone'],
-            'shopify_total_price'      => $request->all()['total_price'],
-            'shopify_order_number'     => $request->all()['number'],
-            'shopify_total_weight'     => $request->all()['total_weight'],
-            'shopify_line_items'       => json_encode($request->all()['line_items']),
-            'shopify_shipping_address' => json_encode($request->all()['shipping_address']),
-            'shopify_billing_address'  => json_encode($request->all()['billing_address']),
-            'send_to_easypost'         => $this->send_to_easypost,
-            /*
-             * TODO Must delete order_weight
-             */
-            'shopify_order_weight'     => $request->all()['total_weight'],
-            'shopify_all_order'        => json_encode($request->all()),
-            'easypost_to_address'      => $to_address,
-            'easypost_from_address'    => $from_address,
-            'predefined_package'       => 'LargeFlatRateBox',
-            'easypost_parcel_weight'   => $weight_in_oz
-
-        ]);
+        AcceptOrder::dispatch($this->config, $this->configEasyPost, $request->all());
         return response()->json(['success' => 'success'], 200);
+
+//        $order = Order::where('shopify_id', $request->all()['id'])->first();
+//        $this->send_to_easypost = false;
+//        //Check if order not exist in our system
+//
+//        if (!$order) {
+//            EasyPost::setApiKey($this->configEasyPost['API_KEY']);
+//
+//            $easyPostOrderFulfillment['service'] = 'standard';
+//            $easyPostOrderFulfillment['destination'] = [
+//                'name'        => $request->all()['shipping_address']['name'],
+//                "street1"     => $request->all()['shipping_address']['address1'],
+//                "city"        => $request->all()['shipping_address']['city'],
+//                "state"       => $request->all()['shipping_address']['province_code'],
+//                "zip"         => $request->all()['shipping_address']['zip'],
+//                "country"     => "US",
+//                "residential" => true
+//            ];
+//
+////            foreach ($request->all()['line_items'] as $item) {
+////
+////                $dbProduct = Product::where('barcode', $item['sku'])->first();
+////                if (!$dbProduct) {
+////
+////                    /*
+////                     * TODO this should create new product in easypost and our system
+////                     */
+////                    $this->createNewProduct(null, null, []);
+////                }
+////
+////                $easyPostOrderFulfillment['line_items'][] = [
+////                    //This is for production
+////                    "product" => ["barcode" => $item['sku']],
+////
+////                    //This is for test orders
+//////                    "product" => ["barcode" => '132-658-887'],
+////                    "units"   => $item['quantity']
+////                ];
+////                logger($item['sku']);
+////            }
+//
+//            //TEST FULFILLMENT
+//            $easyPostOrderFulfillment['line_items'] = [
+//                0 => [
+//                    "product" => ["barcode" => '21101-31XXS'],
+//                    "units"   => 2
+//                ],
+//                1 => [
+//                    "product" => ["barcode" => '21101-82XXS'],
+//                    "units"   => 2
+//                ]
+//            ];
+//
+//
+////            die();
+//            //additional product
+////            if (count($easyPostOrderFulfillment['line_items']) <= 2) {
+////
+////                $additionalProduct = $this->getProduct(1089709637668);
+////                $easyPostOrderFulfillment['line_items'][] = [
+////                    //This is for production
+////                    //"product" => ["barcode" => $item['sku']],
+////                    //This is for test orders
+////                    "product" => ["barcode" => $additionalProduct['barcode']],
+////                    "units"   => 1
+////                ];
+////            }
+//
+//
+//            $client = new Client();
+//            //Try to create product in EasypostOrderFulfillment system
+//
+//            try {
+//
+//                $res = $client->post('https://api.easypost.com/fulfillment/vendor/v2/orders', [
+//                    'headers' => ['Content-type' => 'application/json'],
+//                    'auth'    => [
+//                        'tLxVX2kdaW3sbGnq80eUSg',
+//                        null
+//                    ],
+//                    'json'    => $easyPostOrderFulfillment
+//                ]);
+//                $resBody = json_decode($res->getBody(), 1);
+//                logger('start fulfillment');
+//                logger($resBody);
+//                logger('end fulfillment');
+//                $this->createOrder($request, $resBody['id']);
+//                return response()->json(['success' => 'success'], 200);
+//            } catch (ClientException $exception) {
+//                logger($exception);
+//                return response()->json(['success' => 'success'], 200);
+//            }
+//            return response()->json(['success' => 'success'], 200);
+//        }
     }
+
+//    public function createOrder(Request $request, $easypost_order_id) {
+//
+//        EasyPost::setApiKey($this->configEasyPost['API_KEY']);
+//
+//        $addresses['to_address'] = [
+//            "name"    => $request->all()['shipping_address']['name'],
+//            "street1" => $request->all()['shipping_address']['address1'],
+//            "city"    => $request->all()['shipping_address']['city'],
+//            "state"   => $request->all()['shipping_address']['province_code'],
+//            "zip"     => $request->all()['shipping_address']['zip'],
+//            "phone"   => $request->all()['shipping_address']['phone']
+//        ];
+//
+//        /*
+//         * TODO to ask what is his from address
+//         */
+//        $addresses['from_address'] = [
+//            "company" => "EasyPost",
+//            "street1" => "118 2nd Street",
+//            "street2" => "4th Floor",
+//            "city"    => "San Francisco",
+//            "state"   => "CA",
+//            "zip"     => "94105",
+//            "phone"   => "415-456-7890"
+//        ];
+//        $to_address = \EasyPost\Address::create($addresses['to_address']);
+//
+//
+//        //From Address will be only one
+//        $from_address = \EasyPost\Address::create($addresses['from_address']);
+//
+//        $weight_in_oz = $request->all()['total_weight'] * 0.035;
+//        //Check if total weight is <= 0
+//        // EasyPost don't accept 0 as weight
+//
+//        if ($request->all()['total_weight'] <= 0) {
+//            $weight_in_oz = 0.1;
+//        }
+//
+//
+//        logger($weight_in_oz);
+//
+////            $weight_in_oz = 0;
+//
+//
+//        try {
+//            logger('start order');
+//
+//            $parcel = \EasyPost\Parcel::create(array(
+//                "predefined_package" => "LargeFlatRateBox",
+//                "weight"             => $weight_in_oz
+//                //this is in oz.
+//            ));
+//
+//
+//            $shipment = \EasyPost\Shipment::create(array(
+//                "to_address"   => $to_address,
+//                "from_address" => $from_address,
+//                "parcel"       => $parcel
+//            ));
+//
+//            $shipment->buy($shipment->lowest_rate());
+//
+//            $this->send_to_easypost = true;
+//            //                $shipment->insure(array('amount' => 100));
+//            logger('end order');
+//
+//        } catch (Error $error) {
+////                FailedOrders()
+//            logger('not Sended');
+//
+//            $message['order_number'] = $request->all()['number'];
+//            $message['error_code'] = $error->getHttpStatus();
+//            $message['error_message'] = $error->getMessage();
+//
+//
+//            //Log errors in DB
+//            InternalError::create([
+//                'shopify_order_number' => $request->all()['number'],
+//                'error_body'           => json_encode($error)
+//            ]);
+////                FailedOrders::dispatch($message, $addresses, $this->configEasyPost['API_KEY'], $weight_in_oz)->delay(now()->addMinutes(5));
+//            FailedOrders::dispatch($message, $addresses, $this->configEasyPost['API_KEY'], $weight_in_oz, $request->all()['number']);
+//
+//        }
+//
+//        /*
+//         * TODO If order is successfyly sent to EasyPost
+//         * send_to_easypost field should to be updated too
+//         */
+//
+//        Order::create([
+//            'shopify_id'               => $request->all()['id'],
+//            'shopify_email'            => $request->all()['email'],
+//            'shopify_phone'            => $request->all()['phone'],
+//            'shopify_total_price'      => $request->all()['total_price'],
+//            'shopify_order_number'     => $request->all()['number'],
+//            'shopify_total_weight'     => $request->all()['total_weight'],
+//            'shopify_line_items'       => json_encode($request->all()['line_items']),
+//            'shopify_shipping_address' => json_encode($request->all()['shipping_address']),
+//            'shopify_billing_address'  => json_encode($request->all()['billing_address']),
+//            'send_to_easypost'         => $this->send_to_easypost,
+//            /*
+//             * TODO Must delete order_weight
+//             */
+//            'shopify_order_weight'     => $request->all()['total_weight'],
+//            'shopify_all_order'        => json_encode($request->all()),
+//            'easypost_to_address'      => $to_address,
+//            'easypost_from_address'    => $from_address,
+//            'predefined_package'       => 'LargeFlatRateBox',
+//            'easypost_parcel_weight'   => $weight_in_oz,
+//            'easypost_order_id'        => $easypost_order_id
+//
+//        ]);
+//        return response()->json(['success' => 'success'], 200);
+//    }
 
     public function getDailyOrders() {
 
@@ -441,7 +426,7 @@ class ApiController extends Controller {
             //This is also default
             $easyPostProduct ['type'] = 'merchandise';
 
-//            $easyPostProduct ['requires_serial_tracking'] = false;
+            $easyPostProduct ['requires_serial_tracking'] = true;
 
             /*
              * TODO
@@ -514,50 +499,86 @@ class ApiController extends Controller {
 
     }
 
-//    public function createBOL($products = null) {
-//        $client = new Client();
+    public function createBOL($products = null) {
+
+
+        $products = Product::pluck('barcode');
+        $lineItems = [];
+        foreach ($products as $productBarcode) {
+
+            $lineItems = [
+                [
+                    'product'    => ['barcode' => $productBarcode],
+                    'units'      => 30,
+                    'pallets'    => 1,
+                    'containers' => 1
+                ]
+            ];
+            $client = new Client();
+            try {
+                logger('barcode: ' . $productBarcode);
+                $response = $client->post('https://api.easypost.com/fulfillment/vendor/v2/bols', [
+                    'headers' => ['Content-type' => 'application/json'],
+                    'auth'    => [
+                        'tLxVX2kdaW3sbGnq80eUSg',
+                        null
+                    ],
+                    'json'    => [
+                        'warehouse'          => ['id' => 'wh_24a7e82945634b8593ff168ed49a70d5'],
+                        //Where to take this
+                        'tracking_code'      => '9400136897846127366840',
+                        // This too
+                        'estimated_delivery' => '2017-01-01',
+                        //Where to take different orders
+                        'comments'           => 'PO#12345',
+                        'line_items'         => $lineItems
+                    ]
+                ]);
+                logger('success barcode: ' . $productBarcode);
+            } catch (ClientException $exception) {
+                logger('problem with: ' . $productBarcode);
+
+            }
+
+        }
+
 //        $lineItems = [
 //            [
-//                'product'    => ['barcode' => '1234_pink'],
-//                'units'      => 1,
+//                'product'    => ['barcode' => $products],
+//                'units'      => 30,
 //                'pallets'    => 1,
 //                'containers' => 1
-//            ],
-//            [
-//                'product'    => ['barcode' => '1234_red'],
-//                'units'      => 1,
-//                'pallets'    => 1,
-//                'containers' => 1
-//            ],
-//            [
-//                'product'    => ['barcode' => '1234_black'],
-//                'units'      => 1,
-//                'pallets'    => 1,
-//                'containers' => 1
-//            ],
-//        ];
-//
-//        $response = $client->post('https://api.easypost.com/fulfillment/vendor/v2/bols', [
-//            'headers' => ['Content-type' => 'application/json'],
-//            'auth'    => [
-//                'tLxVX2kdaW3sbGnq80eUSg',
-//                null
-//            ],
-//            'json'    => [
-//                'warehouse'          => ['id' => 'wh_24a7e82945634b8593ff168ed49a70d5'],
-//                //Where to take this
-//                'tracking_code'      => '9400136897846127366840',
-//                // This too
-//                'estimated_delivery' => '2017-01-01',
-//                //Where to take different orders
-//                'comments'           => 'PO#12345',
-//                'line_items'         => $lineItems
 //            ]
-//        ]);
-//        dd($response);
-//    }
+//        ];
+
+
+        dd($response);
+    }
 
     public function easyPostOrder(Request $request) {
-        logger($request->all());
+
+
+        $shopify = new \PHPShopify\ShopifySDK($this->config);
+
+        $order = Order::where('easypost_order_id', $request->all()['id'])->first();
+        if (isset ($request->all()['tracking_code'])) {
+            if ($request->all()['description'] == 'fulfillment.order.created') {
+
+                $order->tracker_id = $request->all()['tracking_code'];
+                $order->save();
+            }
+
+//        logger('tracker start');
+//        logger($request->all());
+//        logger('tracker end');
+
+            $params = [
+                'tracking_number'  => $request->all()['tracking_code'],
+                'tracking_company' => $request->all()['carrier'],
+                'status'           => $request->all()['status']
+            ];
+            $shopify->Order($order->shopify_order_id)->Fulfillment->post($params);
+        }
+        return response()->json(['success' => 'success'], 200);
     }
 }

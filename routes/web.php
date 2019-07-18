@@ -25,7 +25,8 @@ Route::get('/', function () {
     return json_decode();
 });
 Route::get('/test', 'ApiController@test');
-Route::get('/test1', 'ApiController@getProduct');
+Route::get('/bol', 'ApiController@createBOL');
+
 Route::any('/create/product', 'ApiController@createNewProduct');
 Route::any('/easypost/order', 'ApiController@easyPostOrder');
 
