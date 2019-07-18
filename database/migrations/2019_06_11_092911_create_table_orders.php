@@ -26,7 +26,9 @@ class CreateTableOrders extends Migration {
             $table->text('shopify_billing_address');//json object as string
             $table->decimal('shopify_order_weight', 10, 2);
             $table->string('shipify_order_units')->default('grams');
+
             $table->text('shopify_all_order');//json object as string
+            $table->boolean('send_to_easypost');
             //EasyPost data
 
             $table->text('easypost_to_address');//json object as string

@@ -20,13 +20,20 @@ Route::get('/', function () {
 //
 //    return 'Finished';
 
-    return \App\InternalError::first();
+    $error = \App\InternalError::first();
+    dd(json_decode($error->error_body,1));
+    return json_decode();
 });
+Route::get('/test', 'ApiController@test');
+Route::get('/test1', 'ApiController@getProduct');
+Route::any('/create/product', 'ApiController@createNewProduct');
+Route::any('/easypost/order', 'ApiController@easyPostOrder');
+
 Route::get('/products', 'ApiController@getProducts');
 
 Route::get('/orders', 'ApiController@getDailyOrders');
 
 Route::any('/authenticate', 'ApiController@authenticate');
 
-Route::post('/orders/new', 'ApiController@createOrder');
+Route::post('/orders/new', 'ApiController@createFulfillmentOrder');
 Route::any('/orders/update', 'ApiController@updateOrder');

@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Order;
 use EasyPost\EasyPost;
 use EasyPost\Error;
 use Illuminate\Bus\Queueable;
@@ -20,12 +21,14 @@ class FailedOrders implements ShouldQueue {
     protected $email = 'ilia.bojadzhiev@gmail.com';
     protected $easy_post_key;
     protected $weight_in_oz;
+    protected $order_number;
 
-    public function __construct($message, $addresses, $easy_post_key, $weight_in_oz) {
+    public function __construct($message, $addresses, $easy_post_key, $weight_in_oz, $order_number) {
         $this->message = $message;
         $this->addresses = $addresses;
         $this->weight_in_oz = $weight_in_oz;
         $this->easy_post_key = $easy_post_key;
+        $this->order_number = $order_number;
 //        $this->parcel = $parcel;
         //
 
@@ -62,7 +65,16 @@ class FailedOrders implements ShouldQueue {
 
         $shipment->buy($shipment->lowest_rate());
 
+        /*
+         * TODO If order is successfyly sent to EasyPost
+         * send_to_easypost field should to be updated too
+         */
 
+        $order = Order::where('shopify_order_number', $this->order_number)->first();
+        if($order){
+            $order->send_to_easypost = true;
+            $order->save();
+        }
     }
 
     /**
@@ -77,11 +89,6 @@ class FailedOrders implements ShouldQueue {
         $message = $this->message;
         $email = $this->email;
 
-        /*
-         * TODO Mail must be sent when JOB fails
-         * once a day
-         *
-         */
         Mail::send('email.easyPostError', ['data' => $message], function ($m) use ($message, $email) {
             $m->to($email)->subject('Something went wrong with order! ');
         });

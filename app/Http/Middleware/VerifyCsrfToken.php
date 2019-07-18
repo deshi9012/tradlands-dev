@@ -20,6 +20,8 @@ class VerifyCsrfToken extends Middleware
      */
     protected $except = [
         '/orders/new',
-        '/orders/update'
+        '/orders/update',
+        '/create/product',
+        '/easypost/order'
     ];
 }

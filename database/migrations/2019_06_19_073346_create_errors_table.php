@@ -12,8 +12,9 @@ class CreateErrorsTable extends Migration {
      * @return void
      */
     public function up() {
-        Schema::create('errors', function (Blueprint $table) {
+        Schema::create('internal_errors', function (Blueprint $table) {
             $table->bigIncrements('id');
+            $table->integer('shopify_order_number');
             $table->text('error_body');
             $table->timestamps();
         });
@@ -25,6 +26,6 @@ class CreateErrorsTable extends Migration {
      * @return void
      */
     public function down() {
-        Schema::dropIfExists('errors');
+        Schema::dropIfExists('internal_errors');
     }
 }
