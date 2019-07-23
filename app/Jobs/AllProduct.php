@@ -46,7 +46,6 @@ class AllProduct implements ShouldQueue {
      * First argument is when you get all products from shopify second is when you create one or update from shopify
      */
     public function createNewProduct($product) {
-        return;
         logger('Product Start');
         // if (isset($orderProduct)) {
         //     return;
@@ -177,7 +176,6 @@ class AllProduct implements ShouldQueue {
         $shopify = \PHPShopify\ShopifySDK::config($config);
         $sItem = $shopify->Product->count();
         $iterations = ceil($sItem / 250);
-        return;
         for ($i = 0; $i < $iterations; $i++) {
             try {
                 $products = $shopify->Product->get([
