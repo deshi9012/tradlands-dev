@@ -108,21 +108,20 @@ class AcceptOrder implements ShouldQueue {
 
 //            die();
             //additional product
-//            if (count($easyPostOrderFulfillment['line_items']) <= 2) {
-//
-//                $additionalProduct = $this->getProduct(1089709637668);
-//                $easyPostOrderFulfillment['line_items'][] = [
-//                    //This is for production
-//                    //"product" => ["barcode" => $item['sku']],
-//                    //This is for test orders
-//                    "product" => ["barcode" => $additionalProduct['barcode']],
-//                    "units"   => 1
-//                ];
-//            }
+           if (count($easyPostOrderFulfillment['line_items']) <= 3) {
+
+               $additionalProduct = $this->getProduct(1089709637668);
+               $easyPostOrderFulfillment['line_items'][] = [
+                   //This is for production
+                   //"product" => ["barcode" => $item['sku']],
+                   //This is for test orders
+                   "product" => ["barcode" => $additionalProduct['variants'][0]['barcode']],
+                   "units"   => 1
+               ];
+           }
 
 
             $client = new Client();
-            //Try to create product in EasypostOrderFulfillment system
 
             try {
 
@@ -146,6 +145,13 @@ class AcceptOrder implements ShouldQueue {
             }
             return response()->json(['success' => 'success'], 200);
         }
+    }
+
+    public function getProduct($id = 1089709637668) {
+
+        $shopify = new \PHPShopify\ShopifySDK($this->config);
+        return $shopify->Product($id)->get();
+
     }
 
     public function createOrder($easypost_order_id) {
