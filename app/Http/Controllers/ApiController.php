@@ -25,12 +25,12 @@ class ApiController extends Controller {
 
 
     function __construct() {
-        $this->config = array(
-            'ShopUrl'      => 'tradlands-app.myshopify.com',
-            'ApiKey'       => 'ac2c96071db4f676e4e7f547fd5e5a29',
-            'Password'     => '44d9ccea22e5acbf49db8cbcb2e7c79a',
-            'SharedSecret' => 'f7725528c756f5340146b9f2afcf503e'
-        );
+        // $this->config = array(
+        //     'ShopUrl'      => 'tradlands-app.myshopify.com',
+        //     'ApiKey'       => 'ac2c96071db4f676e4e7f547fd5e5a29',
+        //     'Password'     => '44d9ccea22e5acbf49db8cbcb2e7c79a',
+        //     'SharedSecret' => 'f7725528c756f5340146b9f2afcf503e'
+        // );
            $this->config = array(
                'ShopUrl'      => 'https://tradlands.myshopify.com',
                'ApiKey'       => 'f1caf89d0c39b9b515ee2e136a2147d4',
