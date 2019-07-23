@@ -344,7 +344,7 @@ class ApiController extends Controller {
     }
 
     public function test() {
-        AllProduct::dispatch()->onQueue('getproducts');
+        // AllProduct::dispatch()->onQueue('getproducts');
         dd('shhh');
         // $this->createBOL();
         // return 'dadada';
