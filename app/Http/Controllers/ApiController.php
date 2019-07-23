@@ -395,9 +395,10 @@ class ApiController extends Controller {
      */
     public function createNewProduct($product = null, Request $request = null, $orderProduct = null) {
 
-        if (isset($orderProduct)) {
-            return;
-        }
+       logger('Product Start');
+        // if (isset($orderProduct)) {
+        //     return;
+        // }
         /*
          * New Product from Shopify
          */
