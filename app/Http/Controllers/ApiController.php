@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Log;
 use Storage;
 use App\Order;
 use Mail;
+use App\Jobs\AllProduct;
 
 class ApiController extends Controller {
     public $config;
@@ -30,16 +31,16 @@ class ApiController extends Controller {
             'Password'     => '44d9ccea22e5acbf49db8cbcb2e7c79a',
             'SharedSecret' => 'f7725528c756f5340146b9f2afcf503e'
         );
-        //    $this->config = array(
-        //        'ShopUrl'      => 'https://tradlands.myshopify.com',
-        //        'ApiKey'       => 'f1caf89d0c39b9b515ee2e136a2147d4',
-        //        //            'ApiKey'       => '24ffd496be17e6ea65064a8bf7b2e55e',
-        //        //f1caf89d0c39b9b515ee2e136a2147d4 - APIKey
-        //        'Password'     => 'b79dc9ab3df62bcd17bc05d063b90e8c',
-        //        //            'Password'     => 'a78ab8a1ffe51cfb2fbcee11809f433d',
-        //        //b79dc9ab3df62bcd17bc05d063b90e8c - APIPass
-        //        'SharedSecret' => 'f7725528c756f5340146b9f2afcf503e'
-        //    );
+           $this->config = array(
+               'ShopUrl'      => 'https://tradlands.myshopify.com',
+               'ApiKey'       => 'f1caf89d0c39b9b515ee2e136a2147d4',
+               //            'ApiKey'       => '24ffd496be17e6ea65064a8bf7b2e55e',
+               //f1caf89d0c39b9b515ee2e136a2147d4 - APIKey
+               'Password'     => 'b79dc9ab3df62bcd17bc05d063b90e8c',
+               //            'Password'     => 'a78ab8a1ffe51cfb2fbcee11809f433d',
+               //b79dc9ab3df62bcd17bc05d063b90e8c - APIPass
+               'SharedSecret' => 'f7725528c756f5340146b9f2afcf503e'
+           );
         $this->configEasyPost = array(
             'API_KEY' => 'EZTK71befb418b3740e4b2f2e26fb289f6cdCtPeuDlUEHTgLjZ7sv0jPQ'
         );
@@ -343,9 +344,10 @@ class ApiController extends Controller {
     }
 
     public function test() {
-
-        $this->createBOL();
-        return 'dadada';
+        AllProduct::dispatch()->onQueue('getproducts');
+        dd('shhh');
+        // $this->createBOL();
+        // return 'dadada';
         $prod = $this->getProduct();
         dd($prod['variants'][0]['barcode']);
         // $shopify = new \PHPShopify\ShopifySDK($this->config);
@@ -516,7 +518,11 @@ class ApiController extends Controller {
 
     public function createBOL($products = null) {
 
+        $config = $this->config;
 
+        $shopify = \PHPShopify\ShopifySDK::config($config);
+        $sItem = $shopify->Product->count();
+        dd($sItem);
         $products = Product::pluck('barcode');
         $lineItems = [];
         foreach ($products as $productBarcode) {

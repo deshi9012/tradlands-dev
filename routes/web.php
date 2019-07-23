@@ -15,14 +15,15 @@
 use App\Jobs\FailedOrders;
 
 Route::get('/', function () {
+    return 'Working!';
 //    $order = App\Order::first();
 //    FailedOrders::dispatch($order);
 
 //    return 'Finished';
 
-    $error = \App\InternalError::first();
-    dd(json_decode($error->error_body,1));
-    return json_decode();
+    // $error = \App\InternalError::first();
+    // dd(json_decode($error->error_body,1));
+    // return json_decode();
 });
 Route::get('/test', 'ApiController@test');
 Route::get('/bol', 'ApiController@createBOL');

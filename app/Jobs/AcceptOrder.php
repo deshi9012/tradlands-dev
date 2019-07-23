@@ -15,6 +15,7 @@ use App\InternalError;
 use EasyPost\Error;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
+use App\Product;
 
 class AcceptOrder implements ShouldQueue {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
@@ -71,52 +72,24 @@ class AcceptOrder implements ShouldQueue {
                 "residential" => true
             ];
             logger($this->request['line_items']);
+            $itemsCount = 0;
             foreach ($this->request['line_items'] as $item) {
 
 
-                $dbProduct = Product::where('barcode', $item['sku'])->first();
-                if (!$dbProduct) {
-
-                    /*
-                     * TODO this should create new product in easypost and our system
-                     */
-                    $this->createNewProduct(null, null, []);
-                }
-
+                $itemsCount += $item['quantity'];
                 $easyPostOrderFulfillment['line_items'][] = [
-                    //This is for production
                     "product" => ["barcode" => $item['sku']],
-
-                    //This is for test orders
-//                    "product" => ["barcode" => '132-658-887'],
                     "units"   => $item['quantity']
                 ];
-                logger($item['sku']);
             }
-
-            //TEST FULFILLMENT
-//            $easyPostOrderFulfillment['line_items'] = [
-//                0 => [
-//                    "product" => ["barcode" => '21101-87XXS'],
-//                    "units"   => 2
-//                ],
-//                1 => [
-//                    "product" => ["barcode" => '21103-15XXS'],
-//                    "units"   => 2
-//                ]
-//            ];
-
-
-//            die();
-            //additional product
-           if (count($easyPostOrderFulfillment['line_items']) <= 3) {
+           if ($itemsCount <= 3) {
 
                $additionalProduct = $this->getProduct(3686411731037);
                $easyPostOrderFulfillment['line_items'][] = [
                    //This is for production
                    //"product" => ["barcode" => $item['sku']],
                    //This is for test orders
-                   "product" => ["barcode" => $additionalProduct['variants'][0]['barcode']],
+                   "product" => ["barcode" => isset($additionalProduct['variants'][0]['barcode']) && $additionalProduct['variants'][0]['barcode'] ? $additionalProduct['variants'][0]['barcode'] : $additionalProduct['variants'][0]['sku']],
                    "units"   => 1
                ];
            }
