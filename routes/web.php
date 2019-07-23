@@ -17,7 +17,7 @@ use App\Jobs\FailedOrders;
 Route::get('/', function () {
 //    $order = App\Order::first();
 //    FailedOrders::dispatch($order);
-//
+
 //    return 'Finished';
 
     $error = \App\InternalError::first();
@@ -27,6 +27,7 @@ Route::get('/', function () {
 Route::get('/test', 'ApiController@test');
 Route::get('/bol', 'ApiController@createBOL');
 
+Route::get('/all-products',function (){});
 Route::any('/create/product', 'ApiController@createNewProduct');
 Route::any('/easypost/order', 'ApiController@easyPostOrder');
 

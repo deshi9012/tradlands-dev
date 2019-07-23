@@ -30,16 +30,16 @@ class ApiController extends Controller {
             'Password'     => '44d9ccea22e5acbf49db8cbcb2e7c79a',
             'SharedSecret' => 'f7725528c756f5340146b9f2afcf503e'
         );
-    //    $this->config = array(
-    //        'ShopUrl'      => 'https://tradlands.myshopify.com',
-    //        'ApiKey'       => 'f1caf89d0c39b9b515ee2e136a2147d4',
-    //        //            'ApiKey'       => '24ffd496be17e6ea65064a8bf7b2e55e',
-    //        //f1caf89d0c39b9b515ee2e136a2147d4 - APIKey
-    //        'Password'     => 'b79dc9ab3df62bcd17bc05d063b90e8c',
-    //        //            'Password'     => 'a78ab8a1ffe51cfb2fbcee11809f433d',
-    //        //b79dc9ab3df62bcd17bc05d063b90e8c - APIPass
-    //        'SharedSecret' => 'f7725528c756f5340146b9f2afcf503e'
-    //    );
+        //    $this->config = array(
+        //        'ShopUrl'      => 'https://tradlands.myshopify.com',
+        //        'ApiKey'       => 'f1caf89d0c39b9b515ee2e136a2147d4',
+        //        //            'ApiKey'       => '24ffd496be17e6ea65064a8bf7b2e55e',
+        //        //f1caf89d0c39b9b515ee2e136a2147d4 - APIKey
+        //        'Password'     => 'b79dc9ab3df62bcd17bc05d063b90e8c',
+        //        //            'Password'     => 'a78ab8a1ffe51cfb2fbcee11809f433d',
+        //        //b79dc9ab3df62bcd17bc05d063b90e8c - APIPass
+        //        'SharedSecret' => 'f7725528c756f5340146b9f2afcf503e'
+        //    );
         $this->configEasyPost = array(
             'API_KEY' => 'EZTK71befb418b3740e4b2f2e26fb289f6cdCtPeuDlUEHTgLjZ7sv0jPQ'
         );
@@ -398,7 +398,7 @@ class ApiController extends Controller {
      */
     public function createNewProduct(Request $request) {
 
-       logger('Product Start');
+        logger('Product Start');
         // if (isset($orderProduct)) {
         //     return;
         // }
@@ -411,7 +411,7 @@ class ApiController extends Controller {
 //        logger('Product create End');
 
         // if (isset($request)) {
-            $product = $request->all();
+        $product = $request->all();
         // }
         $easyPostProduct = [];
         foreach ($product['variants'] as $prod_variant) {
@@ -571,28 +571,45 @@ class ApiController extends Controller {
     }
 
     public function easyPostOrder(Request $request) {
-
-
+        logger('tracking start');
+        logger($request->all());
+        logger('tracking end');
         $shopify = new \PHPShopify\ShopifySDK($this->config);
 
-        $order = Order::where('easypost_order_id', $request->all()['id'])->first();
-        if (isset ($request->all()['tracking_code'])) {
-            if ($request->all()['description'] == 'fulfillment.order.created') {
+        $order = Order::where('easypost_order_id', $request->all()['result']['id'])->first();
+        logger('start order');
+        logger($order);
+        logger('end order');
+        if(isset ($request->all()['result']['tracking_code'])){
+            $tracker_id = $request->all()['result']['tracking_code'];
+            $status = $request->all()['result']['status'];
+            $carrier = $request->all()['result']['carrier'];
+        }
+        elseif (isset ($request->all()['result']['trackers'][0]['tracking_code'])){
+            $tracker_id = $request->all()['result']['trackers'][0]['tracking_code'];
+            $status = $request->all()['result']['trackers'][0]['status'];
+            $carrier = $request->all()['result']['trackers'][0]['carrier'];
+        }
+        else{
+            $tracker_id = '';
+            $status = '';
+            $carrier = '';
+        }
+        if ($tracker_id) {
+            $order->tracker_id = $tracker_id;
+            $order->save();
 
-                $order->tracker_id = $request->all()['tracking_code'];
-                $order->save();
-            }
 
 //        logger('tracker start');
 //        logger($request->all());
 //        logger('tracker end');
 
             $params = [
-                'tracking_number'  => $request->all()['tracking_code'],
-                'tracking_company' => $request->all()['carrier'],
-                'status'           => $request->all()['status']
+                'tracking_number'  => $tracker_id,
+                'tracking_company' => $carrier,
+                'status'           => $status
             ];
-            $shopify->Order($order->shopify_order_id)->Fulfillment->post($params);
+            $shopify->Order($order->shopify_id)->Fulfillment->post($params);
         }
         return response()->json(['success' => 'success'], 200);
     }
