@@ -110,7 +110,7 @@ class AcceptOrder implements ShouldQueue {
             //additional product
            if (count($easyPostOrderFulfillment['line_items']) <= 3) {
 
-               $additionalProduct = $this->getProduct(1089709637668);
+               $additionalProduct = $this->getProduct(3686411731037);
                $easyPostOrderFulfillment['line_items'][] = [
                    //This is for production
                    //"product" => ["barcode" => $item['sku']],
