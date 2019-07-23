@@ -393,7 +393,7 @@ class ApiController extends Controller {
     /*
      * First argument is when you get all products from shopify second is when you create one or update from shopify
      */
-    public function createNewProduct($product = null, Request $request = null, $orderProduct = null) {
+    public function createNewProduct(Request $request) {
 
        logger('Product Start');
         // if (isset($orderProduct)) {
@@ -407,9 +407,9 @@ class ApiController extends Controller {
 //        logger($request->all());
 //        logger('Product create End');
 
-        if (isset($request)) {
+        // if (isset($request)) {
             $product = $request->all();
-        }
+        // }
         $easyPostProduct = [];
         foreach ($product['variants'] as $prod_variant) {
 
