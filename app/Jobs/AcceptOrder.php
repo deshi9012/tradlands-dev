@@ -149,7 +149,7 @@ class AcceptOrder implements ShouldQueue {
 
     public function getProduct($id = 1089709637668) {
 
-        $shopify = new \PHPShopify\ShopifySDK($this->config);
+        $shopify = new \PHPShopify\ShopifySDK($this->shopifyConfig);
         return $shopify->Product($id)->get();
 
     }
