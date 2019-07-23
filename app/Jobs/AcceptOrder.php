@@ -70,40 +70,41 @@ class AcceptOrder implements ShouldQueue {
                 "country"     => "US",
                 "residential" => true
             ];
+            logger($this->request['line_items']);
+            foreach ($this->request['line_items'] as $item) {
 
-//            foreach ($this->>request['line_items'] as $item) {
-//
-//                $dbProduct = Product::where('barcode', $item['sku'])->first();
-//                if (!$dbProduct) {
-//
-//                    /*
-//                     * TODO this should create new product in easypost and our system
-//                     */
-//                    $this->createNewProduct(null, null, []);
-//                }
-//
-//                $easyPostOrderFulfillment['line_items'][] = [
-//                    //This is for production
-//                    "product" => ["barcode" => $item['sku']],
-//
-//                    //This is for test orders
-////                    "product" => ["barcode" => '132-658-887'],
-//                    "units"   => $item['quantity']
-//                ];
-//                logger($item['sku']);
-//            }
+
+                $dbProduct = Product::where('barcode', $item['sku'])->first();
+                if (!$dbProduct) {
+
+                    /*
+                     * TODO this should create new product in easypost and our system
+                     */
+                    $this->createNewProduct(null, null, []);
+                }
+
+                $easyPostOrderFulfillment['line_items'][] = [
+                    //This is for production
+                    "product" => ["barcode" => $item['sku']],
+
+                    //This is for test orders
+//                    "product" => ["barcode" => '132-658-887'],
+                    "units"   => $item['quantity']
+                ];
+                logger($item['sku']);
+            }
 
             //TEST FULFILLMENT
-            $easyPostOrderFulfillment['line_items'] = [
-                0 => [
-                    "product" => ["barcode" => '21101-87XXS'],
-                    "units"   => 2
-                ],
-                1 => [
-                    "product" => ["barcode" => '21103-15XXS'],
-                    "units"   => 2
-                ]
-            ];
+//            $easyPostOrderFulfillment['line_items'] = [
+//                0 => [
+//                    "product" => ["barcode" => '21101-87XXS'],
+//                    "units"   => 2
+//                ],
+//                1 => [
+//                    "product" => ["barcode" => '21103-15XXS'],
+//                    "units"   => 2
+//                ]
+//            ];
 
 
 //            die();
