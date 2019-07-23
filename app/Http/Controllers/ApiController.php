@@ -342,6 +342,8 @@ class ApiController extends Controller {
     }
 
     public function test() {
+
+        $this->createBOL();
         return 'dadada';
         $prod = $this->getProduct();
         dd($prod['variants'][0]['barcode']);
