@@ -70,7 +70,8 @@ class ApiController extends Controller {
     }
 
     public function createFulfillmentOrder(Request $request) {
-
+        //TODO да се записват поръчките в базата данни
+        // Да се проверява дали поръчката вече е записана в нашата база данни
         AcceptOrder::dispatch($this->config, $this->configEasyPost, $request->all());
         return response()->json(['success' => 'success'], 200);
 
