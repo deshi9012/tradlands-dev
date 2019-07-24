@@ -68,7 +68,7 @@ class AcceptOrder implements ShouldQueue {
                 "city"        => $this->request['shipping_address']['city'],
                 "state"       => $this->request['shipping_address']['province_code'],
                 "zip"         => $this->request['shipping_address']['zip'],
-                "country"     => "US",
+                "country"         => $this->request['shipping_address']['country_code'],
                 "residential" => true
             ];
             logger($this->request['line_items']);
