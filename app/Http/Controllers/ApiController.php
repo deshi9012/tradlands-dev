@@ -31,16 +31,16 @@ class ApiController extends Controller {
         //     'Password'     => '44d9ccea22e5acbf49db8cbcb2e7c79a',
         //     'SharedSecret' => 'f7725528c756f5340146b9f2afcf503e'
         // );
-           $this->config = array(
-               'ShopUrl'      => 'https://tradlands.myshopify.com',
-               'ApiKey'       => 'f1caf89d0c39b9b515ee2e136a2147d4',
-               //            'ApiKey'       => '24ffd496be17e6ea65064a8bf7b2e55e',
-               //f1caf89d0c39b9b515ee2e136a2147d4 - APIKey
-               'Password'     => 'b79dc9ab3df62bcd17bc05d063b90e8c',
-               //            'Password'     => 'a78ab8a1ffe51cfb2fbcee11809f433d',
-               //b79dc9ab3df62bcd17bc05d063b90e8c - APIPass
-               'SharedSecret' => 'f7725528c756f5340146b9f2afcf503e'
-           );
+        $this->config = array(
+            'ShopUrl'      => 'https://tradlands.myshopify.com',
+            'ApiKey'       => 'f1caf89d0c39b9b515ee2e136a2147d4',
+            //            'ApiKey'       => '24ffd496be17e6ea65064a8bf7b2e55e',
+            //f1caf89d0c39b9b515ee2e136a2147d4 - APIKey
+            'Password'     => 'b79dc9ab3df62bcd17bc05d063b90e8c',
+            //            'Password'     => 'a78ab8a1ffe51cfb2fbcee11809f433d',
+            //b79dc9ab3df62bcd17bc05d063b90e8c - APIPass
+            'SharedSecret' => 'f7725528c756f5340146b9f2afcf503e'
+        );
         $this->configEasyPost = array(
             'API_KEY' => 'EZTK71befb418b3740e4b2f2e26fb289f6cdCtPeuDlUEHTgLjZ7sv0jPQ'
         );
@@ -55,6 +55,7 @@ class ApiController extends Controller {
 //        );
 
     }
+
 
     public function getProducts() {
 
@@ -292,54 +293,79 @@ class ApiController extends Controller {
 
 //        dd(Carbon::today()->toISOString());
         $shopify = new \PHPShopify\ShopifySDK($this->config);
-        $params = array(
-//            'created_at_min' => '2019-06-10T16:15:47-04:00'
-'created_at_min' => Carbon::yesterday()->toISOString()
-        );
-        $orders = $shopify->Order->get($params);
-        return $orders;
-        $failedOrders = Order::whereDate('created_at', Carbon::today())->where('send_to_easypost', false)->get();
-//        dd($failedOrders);
-        $orders = $shopify->Order->get($params);
+        $start_date = Carbon::today()->toISOString();
+        $params = [
+            'limit' =>250,
+            'created_at_min' => $start_date
+        ];
+        $shopifyOrders = $shopify->Order->get($params);
 
-        //Extract all id keys from shopify
-        $ordersIds = [];
-        foreach ($orders as $order) {
-            if ($failedOrders->shopoify_order_number == $order['order_number']) {
-                $error = InternalError::where('shopify_order_number', $order['order_number'])->first();
-                $error_body = json_decode($error->error_body, 1);
-
-                $error_message['order_number'] = $order['order_number'];
-                $error_message['error_code'] = $error_body['httpStatus'];
-                $error_message['error_message'] = json_decode($error_body, 1)['error']['message'];
+//        $failedOrders = Order::whereDate('created_at', Carbon::today())->where('send_to_easypost', false)->get();
+        $appOrders = Order::whereDate('created_at', '>=', $start_date)->get()->pluck('shopify_id')->toArray();
 
 
-                $addresses['to_address'] = [
-                    "name"    => $order['shipping_address']['name'],
-                    "street1" => $order['shipping_address']['address1'],
-                    "city"    => $order['shipping_address']['city'],
-                    "state"   => $order['shipping_address']['province_code'],
-                    "zip"     => $order['shipping_address']['zip'],
-                    "phone"   => $order['shipping_address']['phone']
-                ];
-                $addresses['from_address'] = [
-                    "company" => "EasyPost",
-                    "street1" => "118 2nd Street",
-                    "street2" => "4th Floor",
-                    "city"    => "San Francisco",
-                    "state"   => "CA",
-                    "zip"     => "94105",
-                    "phone"   => "415-456-7890"
-                ];
-                //Check if total weight is <= 0
-                // EasyPost don't accept 0 as weight
-                if ($order['total_weight'] <= 0) {
-                    $order['total_weight'] = 0.1;
-                }
-                $weight_in_oz = $order['total_weight'] * 0.035;
-                FailedOrders::dispatch($error_message, $addresses, $this->configEasyPost['API_KEY'], $weight_in_oz, $order['number']);
+        $biggerArr = $appOrders;
+//        if(count($shopifyOrders) > count($appOrders)){
+//            $biggerArr = $shopifyOrders;
+//        }
+
+        //Check if every order from shopify exist in our DB
+        foreach ($shopifyOrders as $shopifyOrder) {
+            dd($shopifyOrder);
+            if(in_array($shopifyOrder['id'], $appOrders) ){
+
+                var_dump('exist: ' . $shopifyOrder['id']);
+                echo '/n';
+            }
+            else{
+//                dd($shopifyOrder);
+                AcceptOrder::dispatch($this->config, $this->configEasyPost, $shopifyOrder);
             }
         }
+
+//        $shopifyOrders = $shopify->Order->get($params);
+//
+//        if(count($appOrders) != count($shopifyOrders)){
+//
+//        }
+//        //Extract all id keys from shopify
+//        $ordersIds = [];
+//        foreach ($orders as $order) {
+//            if ($failedOrders->shopoify_order_number == $order['order_number']) {
+//                $error = InternalError::where('shopify_order_number', $order['order_number'])->first();
+//                $error_body = json_decode($error->error_body, 1);
+//
+//                $error_message['order_number'] = $order['order_number'];
+//                $error_message['error_code'] = $error_body['httpStatus'];
+//                $error_message['error_message'] = json_decode($error_body, 1)['error']['message'];
+//
+//
+//                $addresses['to_address'] = [
+//                    "name"    => $order['shipping_address']['name'],
+//                    "street1" => $order['shipping_address']['address1'],
+//                    "city"    => $order['shipping_address']['city'],
+//                    "state"   => $order['shipping_address']['province_code'],
+//                    "zip"     => $order['shipping_address']['zip'],
+//                    "phone"   => $order['shipping_address']['phone']
+//                ];
+//                $addresses['from_address'] = [
+//                    "company" => "EasyPost",
+//                    "street1" => "118 2nd Street",
+//                    "street2" => "4th Floor",
+//                    "city"    => "San Francisco",
+//                    "state"   => "CA",
+//                    "zip"     => "94105",
+//                    "phone"   => "415-456-7890"
+//                ];
+//                //Check if total weight is <= 0
+//                // EasyPost don't accept 0 as weight
+//                if ($order['total_weight'] <= 0) {
+//                    $order['total_weight'] = 0.1;
+//                }
+//                $weight_in_oz = $order['total_weight'] * 0.035;
+//                FailedOrders::dispatch($error_message, $addresses, $this->configEasyPost['API_KEY'], $weight_in_oz, $order['number']);
+//            }
+//        }
 
     }
 
@@ -586,17 +612,15 @@ class ApiController extends Controller {
         logger('start order');
         logger($order);
         logger('end order');
-        if(isset ($request->all()['result']['tracking_code'])){
+        if (isset ($request->all()['result']['tracking_code'])) {
             $tracker_id = $request->all()['result']['tracking_code'];
             $status = $request->all()['result']['status'];
             $carrier = $request->all()['result']['carrier'];
-        }
-        elseif (isset ($request->all()['result']['trackers'][0]['tracking_code'])){
+        } elseif (isset ($request->all()['result']['trackers'][0]['tracking_code'])) {
             $tracker_id = $request->all()['result']['trackers'][0]['tracking_code'];
             $status = $request->all()['result']['trackers'][0]['status'];
             $carrier = $request->all()['result']['trackers'][0]['carrier'];
-        }
-        else{
+        } else {
             $tracker_id = '';
             $status = '';
             $carrier = '';
