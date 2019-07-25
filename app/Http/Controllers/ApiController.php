@@ -300,72 +300,21 @@ class ApiController extends Controller {
         ];
         $shopifyOrders = $shopify->Order->get($params);
 
-//        $failedOrders = Order::whereDate('created_at', Carbon::today())->where('send_to_easypost', false)->get();
+
         $appOrders = Order::whereDate('created_at', '>=', $start_date)->get()->pluck('shopify_id')->toArray();
-
-
-        $biggerArr = $appOrders;
-//        if(count($shopifyOrders) > count($appOrders)){
-//            $biggerArr = $shopifyOrders;
-//        }
-
-        //Check if every order from shopify exist in our DB
         foreach ($shopifyOrders as $shopifyOrder) {
-            dd($shopifyOrder);
             if(in_array($shopifyOrder['id'], $appOrders) ){
 
                 var_dump('exist: ' . $shopifyOrder['id']);
                 echo '/n';
             }
             else{
-//                dd($shopifyOrder);
+
                 AcceptOrder::dispatch($this->config, $this->configEasyPost, $shopifyOrder);
             }
         }
 
-//        $shopifyOrders = $shopify->Order->get($params);
-//
-//        if(count($appOrders) != count($shopifyOrders)){
-//
-//        }
-//        //Extract all id keys from shopify
-//        $ordersIds = [];
-//        foreach ($orders as $order) {
-//            if ($failedOrders->shopoify_order_number == $order['order_number']) {
-//                $error = InternalError::where('shopify_order_number', $order['order_number'])->first();
-//                $error_body = json_decode($error->error_body, 1);
-//
-//                $error_message['order_number'] = $order['order_number'];
-//                $error_message['error_code'] = $error_body['httpStatus'];
-//                $error_message['error_message'] = json_decode($error_body, 1)['error']['message'];
-//
-//
-//                $addresses['to_address'] = [
-//                    "name"    => $order['shipping_address']['name'],
-//                    "street1" => $order['shipping_address']['address1'],
-//                    "city"    => $order['shipping_address']['city'],
-//                    "state"   => $order['shipping_address']['province_code'],
-//                    "zip"     => $order['shipping_address']['zip'],
-//                    "phone"   => $order['shipping_address']['phone']
-//                ];
-//                $addresses['from_address'] = [
-//                    "company" => "EasyPost",
-//                    "street1" => "118 2nd Street",
-//                    "street2" => "4th Floor",
-//                    "city"    => "San Francisco",
-//                    "state"   => "CA",
-//                    "zip"     => "94105",
-//                    "phone"   => "415-456-7890"
-//                ];
-//                //Check if total weight is <= 0
-//                // EasyPost don't accept 0 as weight
-//                if ($order['total_weight'] <= 0) {
-//                    $order['total_weight'] = 0.1;
-//                }
-//                $weight_in_oz = $order['total_weight'] * 0.035;
-//                FailedOrders::dispatch($error_message, $addresses, $this->configEasyPost['API_KEY'], $weight_in_oz, $order['number']);
-//            }
-//        }
+
 
     }
 
