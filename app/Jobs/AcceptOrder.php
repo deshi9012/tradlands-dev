@@ -86,8 +86,7 @@ class AcceptOrder implements ShouldQueue {
 
                $additionalProduct = $this->getProduct(1089709637668);
                $easyPostOrderFulfillment['line_items'][] = [
-                   //This is for production
-                   //"product" => ["barcode" => $item['sku']],
+
                    //This is for test orders
                    "product" => ["barcode" => isset($additionalProduct['variants'][0]['barcode']) && $additionalProduct['variants'][0]['barcode'] ? $additionalProduct['variants'][0]['barcode'] : $additionalProduct['variants'][0]['sku']],
                    "units"   => 1
@@ -196,7 +195,7 @@ class AcceptOrder implements ShouldQueue {
             logger('end order');
 
         } catch (Error $error) {
-//                FailedOrders()
+
             logger('not Sended');
 
             $message['order_number'] = $this->request['number'];
