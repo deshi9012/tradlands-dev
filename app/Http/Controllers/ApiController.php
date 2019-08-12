@@ -386,7 +386,7 @@ class ApiController extends Controller {
         $res = $client->post('https://api.easypost.com/fulfillment/vendor/v2/bols', [
             'headers' => ['Content-type' => 'application/json'],
             'auth'    => [
-                'tLxVX2kdaW3sbGnq80eUSg',
+                'EZAK888a73b3a4684469870d9cfa0136c887G98JD5remAxuQ8foaxjIKA',
                 null
             ],
             'json'    => $data
@@ -479,7 +479,7 @@ class ApiController extends Controller {
                 $res = $client->post('https://api.easypost.com/fulfillment/vendor/v2/products', [
                     'headers' => ['Content-type' => 'application/json'],
                     'auth'    => [
-                        'tLxVX2kdaW3sbGnq80eUSg',
+                        'EZAK888a73b3a4684469870d9cfa0136c887G98JD5remAxuQ8foaxjIKA',
                         null
                     ],
                     'json'    => $easyPostProduct
@@ -541,7 +541,7 @@ class ApiController extends Controller {
                 $response = $client->post('https://api.easypost.com/fulfillment/vendor/v2/bols', [
                     'headers' => ['Content-type' => 'application/json'],
                     'auth'    => [
-                        'tLxVX2kdaW3sbGnq80eUSg',
+                        'EZAK888a73b3a4684469870d9cfa0136c887G98JD5remAxuQ8foaxjIKA',
                         null
                     ],
                     'json'    => [
@@ -576,7 +576,7 @@ class ApiController extends Controller {
         dd($response);
     }
 
-    public function easyPostOrder(Request $request) {
+    public function updateOrder(Request $request) {
         logger('tracking start');
         logger($request->all());
         logger('tracking end');

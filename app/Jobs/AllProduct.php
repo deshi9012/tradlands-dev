@@ -127,7 +127,7 @@ class AllProduct implements ShouldQueue {
                 $res = $client->post('https://api.easypost.com/fulfillment/vendor/v2/products', [
                     'headers' => ['Content-type' => 'application/json'],
                     'auth'    => [
-                        'tLxVX2kdaW3sbGnq80eUSg',
+                        'EZAK888a73b3a4684469870d9cfa0136c887G98JD5remAxuQ8foaxjIKA',
                         null
                     ],
                     'json'    => $easyPostProduct
